@@ -25,13 +25,14 @@ def parse(soup):
     for x in cost:
         cost_convered.append(str(x))
     price = cost_convered[1]
+    int_price = int(price)
 
     #Name Convert
     name_convert = []
     for x in title:
         name_convert.append(str(x))
     name = name_convert
-    print(name, ':', price)
+    print(name, ':', int_price)
 
 
 
