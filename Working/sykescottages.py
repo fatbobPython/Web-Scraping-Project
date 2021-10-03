@@ -1,44 +1,49 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
-import re
+from datetime import date, timedelta, datetime
 
-url = 'https://www.sykescottages.co.uk/cottage/Scottish-Borders-Gaindykehead/Blackbrae-Cabin-982863.html?_hsearch=2109156142460f7f6df&_price=247&_display=1#duration=3&start=2021-10-03&changeover=0'
+url = 'https://www.sykescottages.co.uk/cottage/Scottish-Borders-Gaindykehead/Blackbrae-Cabin-982863.html'
 
 
-def get_data(url):
+def extract_prices_from_page(year, soup):
+    booking_buttons = soup.select('ul.booking-buttons>li>div.inner-button')[1:]
+    for btn in booking_buttons:
+        date_str = next(iter(btn.select('p.date>span'))).string[:-3]
+        dte = datetime.strptime(f'{date_str} {year}', '%a %d %b %Y')
+
+        price = next(iter(btn.select('p.price'))).string
+        # this is where we save to database - using a reference to the price
+        # monitor config, the current date, and the date and price for the
+        # property
+        print(f'{dte} {price}')
+
+
+def first_of_next_month(dte):
+    return (dte.replace(day=1) + timedelta(days=32)).replace(day=1)
+
+
+def configure_driver():
     driver = webdriver.Chrome()
+    driver.implicitly_wait(10)
     driver.get(url)
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    return soup
-
-def parse(soup):
-
-    #Extract Data
-    cost = soup.find('p', {'class': 'price ng-binding'})
-    title = soup.find('h1')
+    return driver
 
 
-
-    #Convert to string and seperate
-    #Cost Convert
-    cost_convered = []
-    for x in cost:
-        cost_convered.append(str(x))
-    price = cost_convered[0]
-    price.replace('[', '')
-    price.replace(']', '')
+def click_next_month(driver):
+    next_month = driver.find_element_by_css_selector('a.next-month')
+    driver.execute_script('arguments[0].scrollIntoView(true)', next_month)
+    next_month.click()
 
 
-    #Name Convert
-    name_convert = []
-    for x in title:
-        name_convert.append(str(x))
-    name = name_convert[0]
-    name.replace('[', '')
-    name.replace(']', '')
+def find_prices(url):
+    driver = configure_driver()
 
-    print(name, ':', price)
+    dte = date.today()
+    while dte < (date.today() + timedelta(weeks=52)):
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        extract_prices_from_page(dte.year, soup)
+        dte = first_of_next_month(dte)
+        click_next_month(driver)
 
 
-soup = get_data(url)
-parse(soup)
+find_prices(url)
